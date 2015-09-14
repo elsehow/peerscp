@@ -1,6 +1,6 @@
 # peerscp
 
-a dumb-simple peer-to-peer "ssh" over webrtc
+a dumb-simple peer-to-peer "scp" over webrtc
 
 # usage
 
