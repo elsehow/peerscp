@@ -10,7 +10,7 @@ Listen for a connection over my-key. Share this key with your friend.
  
   `peerssh -i -k my-key`
  
-Initiate a connection over my-key. This will only work if some other machine has run peerssh -k my-key already.
+Initiate a connection over my-key. This will only work if some other machine has run `peerssh -k my-key` already.
 
 After the introductions, stdin is forwarded to the remote connection and data from the remote connection goes to stdout.
 
