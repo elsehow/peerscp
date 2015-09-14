@@ -1,9 +1,9 @@
 {
-  "name": "peerssh",
+  "name": "peerscp",
   "version": "1.0.3",
-  "description": "ghetto p2p ssh via webRTC",
+  "description": "a command line tool for sending files to your friends via webRTC",
   "bin": {
-    "peerssh": "cmd.js"
+    "peerscp": "cmd.js"
   },
   "dependencies": {
     "minimist": "^1.1.1",
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/elsehow/peerssh.git"
+    "url": "git://github.com/elsehow/peerscp.git"
   },
   "keywords": [
     "netcat",
@@ -25,7 +25,7 @@
   "author": "elsehow",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/elsehow/peerssh/issues"
+    "url": "https://github.com/elsehow/peerscp/issues"
   },
-  "homepage": "https://github.com/elsehow/peerssh#readme"
+  "homepage": "https://github.com/elsehow/peerscp#readme"
 }
