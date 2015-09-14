@@ -4,11 +4,11 @@ a dumb-simple peer-to-peer "ssh" over webrtc
 
 # usage
 
-  peerssh -k my-key
+`peerssh -k my-key`
 
 Listen for a connection over my-key. Share this key with your friend.
  
-  peerssh -i -k my-key
+  `peerssh -i -k my-key`
  
 Initiate a connection over my-key. This will only work if some other machine has run peerssh -k my-key already.
 
@@ -16,11 +16,11 @@ After the introductions, stdin is forwarded to the remote connection and data fr
 
 For example:
   
-  peerssh -k my-key > cool-file.mp3
+  `peerssh -k my-key > cool-file.mp3`
   
 And on the other end:
 
-  peerssh -i -k my-key < file-to-share.mp3
+  `peerssh -i -k my-key < file-to-share.mp3`
 
 # install
 
