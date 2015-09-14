@@ -1,10 +1,10 @@
 # peerssh
 
-peerssh netcat
+a dumb-simple peer-to-peer "ssh" over webrtc
 
 # usage
 
-see peerssh -h
+see `peerssh -h`
 
 # install
 

@@ -1,6 +1,6 @@
 {
   "name": "peerssh",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "ghetto p2p ssh via webRTC",
   "bin": {
     "peerssh": "cmd.js"
