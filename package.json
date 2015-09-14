@@ -1,30 +1,31 @@
 {
-  "name": "rtcat",
+  "name": "peerssh",
   "version": "1.0.1",
-  "description": "webrtc netcat",
+  "description": "ghetto p2p ssh via webRTC",
   "bin": {
-    "rtcat": "cmd.js"
+    "peerssh": "cmd.js"
   },
   "dependencies": {
     "minimist": "^1.1.1",
+    "request-json": "^0.5.3",
     "simple-peer": "^4.2.3",
-    "split2": "^0.2.1",
-    "through2": "^0.6.5",
+    "socket.io-client": "^1.3.6",
     "wrtc": "^0.0.55"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/substack/rtcat.git"
+    "url": "git://github.com/elsehow/peerssh.git"
   },
   "keywords": [
     "netcat",
+    "simple-peer",
     "webrtc",
     "command"
   ],
-  "author": "substack",
+  "author": "elsehow",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/substack/rtcat/issues"
+    "url": "https://github.com/elsehow/peerssh/issues"
   },
-  "homepage": "https://github.com/substack/rtcat#readme"
+  "homepage": "https://github.com/elsehow/peerssh#readme"
 }
