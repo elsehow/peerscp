@@ -2,11 +2,16 @@
 
 var Peer = require('simple-peer');
 var exec = require('child_process').exec;
-var fs = require('fs');
+var fs   = require('fs');
 var path = require('path');
+var read = function (f) { return fs.createReadStream(f) }
+var _    = require('lodash')
 
-var signalhub = 'http://indra.webfactional.com'
-var socket = require('socket.io-client')(signalhub)
+var through = require('through2')
+var CombinedStream = require('combined-stream');
+
+var signalhub  = 'http://indra.webfactional.com'
+var socket     = require('socket.io-client')(signalhub)
 var jsonClient = require('request-json').createClient(signalhub)
 
 var minimist = require('minimist');
@@ -45,13 +50,14 @@ var shareSignal = function (signal, type) {
   //console.log('shared', signal)
 }
 
-if (!argv.key) {
-  console.log("You'll need a key. Run with --help for more information.")
-  process.exit(0)
-}
+// if (!argv.key) {
+//   console.log("You'll need a key. Run with --help for more information.")
+//   process.exit(0)
+// }
 
-var offer_event = "pssh-offer-"+argv.key
-var answer_event = "pssh-answer-"+argv.key
+var offer_event = "pssh-offer"
+var answer_event = "pssh-answer"
+var files_to_send = argv._
 
 if (argv.initiate) { 
   socket.on(answer_event, function (d) {
@@ -65,7 +71,16 @@ if (argv.initiate) {
     shareSignal(s, offer_event)
   })
   peer.on('connect', function () {
-    process.stdin.pipe(peer)
+    var combinedStream = CombinedStream.create();
+    files_to_send.forEach(function (file) {
+      // NOW FOR EACH FILE
+      // I ALSO WANT TO APPEND A STREAM OF LIKE,,,
+      // THE FILENAME...?
+      combinedStream.append(function(next) {
+        next(fs.createReadStream(file))
+      })
+    })
+    combinedStream.pipe(peer)
   })
 }
 
@@ -77,8 +92,14 @@ if (!argv.initiate) {
     peer.once('signal', function (s) {
       shareSignal(s, answer_event)
     })
+    var thru = through(function(buf, _, next) {
+      this.push(JSON.parse(buf, 'base64'))
+      next()
+    })
     peer.on('connect', function () {
+      // peer.pipe(thru).pipe(process.stdout)
       peer.pipe(process.stdout)
     })
+    // peer.on('data', function (d) { console.log(d) // peer.pipe(process.stdout) })
   })
 }
