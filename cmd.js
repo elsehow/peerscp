@@ -55,6 +55,25 @@ var handshake = function (signal, type) {
   }
 }
 
+
+var sender = function (connectCb) {
+  // setup a listener for receiver's answer event
+  socket.on(answer_event, function (answer) {
+    // on peer's answer, we mirror their signal back to connect
+    signal(peer, answer.signal)
+    socket.disconnect()
+  })
+  // initiate an offer introduction to receiver
+  var peer = makePeer(true)
+  peer.once('signal', function (offer) {
+    post(handshake(offer, offer_event))
+  })
+  // on connect to peer
+  peer.on('connect', function () {
+    connectCb(peer)
+  })
+}
+
 var receiver = function (connectCb) {
   socket.on(offer_event, function (offer) {
     socket.disconnect()
@@ -69,31 +88,34 @@ var receiver = function (connectCb) {
   })
 }
 
-var sender = function (connectCb) {
-  // setup a listener for receiver's answer event
-  socket.on(answer_event, function (answer) {
-    // on peer's answer, we mirror their signal back to connect
-    signal(peer, answer.signal)
-    socket.disconnect()
+var senderRoutine = function (peer) {
+  var combinedStream = CombinedStream.create();
+  // stream each file passed over argv._
+  argv._.forEach(function (file) {
+    // send descriptive json before each file stream
+    combinedStream.append(function(next) {
+      next('{"file":"' + file + '"}')
+    })
+    // stream the file
+    combinedStream.append(function(next) {
+      next(read(file))
+    })
   })
-  // initiate an offer introduction to receiver
-  var peer = makePeer(true)
-  peer.once('signal', function (offer) {
-    post(handshake(offer, offer_event))
-  })
-  // on connect
-  peer.on('connect', function () {
-    connectCb(peer)
-  })
+  combinedStream.pipe(peer)
 }
 
+// TODO base 64 buffer decoding??
+// test between two machines + with ben???
 var receiverRoutine = function (peer) {
   var filenames = through(function (buf, _, next) {
+    // if this is a json buffer, parse it, read the filename,
+    // and pipe future data to an appropriate write stream
     try {
       var f = JSON.parse(buf).file
       console.log('receiving', f)
       this.pipe(write('TEST-'+f))
       next()
+    // if this isnt a json buffer, keep pushing to write stream
     } catch (_) {
       this.push(buf)
       next()
@@ -102,30 +124,16 @@ var receiverRoutine = function (peer) {
   peer.pipe(filenames)
 }
 
-var senderRoutine = function (peer) {
-  // stream files
-  var combinedStream = CombinedStream.create();
-  // files (which are passed to the cli with no flag) are in argv._
-  argv._.forEach(function (file) {
-    combinedStream.append(function(next) {
-      next('{"file":"' + file + '"}')
-    })
-    combinedStream.append(function(next) {
-      next(read(file))
-    })
-  })
-  combinedStream.pipe(peer)
-}
-
 var offer_event = "pssh-offer"
 var answer_event = "pssh-answer"
 
+// run sender routine if there are files passed over
 if (!empty(argv._)) { 
   console.log('sending ', argv._, ', initiating connection to peer...')
   sender(senderRoutine)
 }
 
-// TODO: should be using base64?
+// run receiver routine if there aren't
 if (empty(argv._)) {
   receiver(receiverRoutine)
 }
