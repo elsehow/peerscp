@@ -7,8 +7,10 @@
   },
   "dependencies": {
     "combined-stream": "^1.0.5",
+    "combined-stream2": "^1.1.1",
     "concat-stream": "^1.5.0",
     "generate-object-property": "^1.2.0",
+    "json-stream": "^1.0.0",
     "lodash": "^3.10.1",
     "minimist": "^1.1.1",
     "request-json": "^0.5.3",

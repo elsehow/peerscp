@@ -1,105 +1,114 @@
 #!/usr/bin/env node
 
 var Peer = require('simple-peer');
-var exec = require('child_process').exec;
 var fs   = require('fs');
 var path = require('path');
-var read = function (f) { return fs.createReadStream(f) }
-var _    = require('lodash')
-
 var through = require('through2')
-var CombinedStream = require('combined-stream');
-
+var CombinedStream = require('combined-stream2');
 var signalhub  = 'http://indra.webfactional.com'
 var socket     = require('socket.io-client')(signalhub)
 var jsonClient = require('request-json').createClient(signalhub)
-
 var minimist = require('minimist');
-var argv = minimist(process.argv.slice(2), {
-    boolean: [ 'initiate' ],
-    alias: {
-        i: 'initiate',
-        k: 'key',
-        h: 'help'
-    }
-});
-if (argv.help || argv._[0] === 'help') {
-    return fs.createReadStream(path.join(__dirname, 'usage.txt'))
-        .pipe(process.stdout)
-    ;
-}
+// returns a read stream from file
+var p = function (f) { return path.join(__dirname, f) }
+var read = function (f) {return fs.createReadStream(p(f))}
+var write = function (f) {return fs.createWriteStream(p(f))}
+// posts object d to signalhub as json, return snothing
+var post = function (d) {jsonClient.post('/', d, function(_, _, _){ return })}
+var empty = function (x) { return x.length==0 }
 
+// arguments are -k and -h
+// files (which are passed to the cli with no flag) get saved in argv._
+var argv = minimist(process.argv.slice(2), {
+    alias: { k: 'key', h: 'help', }
+});
+
+// TODO
+// if user did something wrong, 
+// let them know
+// console.log(empty(argv._))
+// if (argv.help 
+//     || argv._[0] === 'help'
+//     || (argv.i && empty(argv._))
+//     || (!argv.i && !empty(argv._))) {
+//   read('usage.txt').pipe(process.stdout);
+// }
+
+// make a simple-peer peer
 var makePeer = function (isInitiator) {
   return new Peer({
       initiator: isInitiator,
-      wrtc: require('wrtc'),
-      trickle: false
+      wrtc: require('wrtc'),  // for node only, no wrtc thing in browser
+      trickle: false,  // no idea what trickle means
   })
 }
 
-var handshake = function (reference, type) {
+// signal to a peer p some introduction signal s
+var signal = function (p, s) {
+  p.signal(JSON.stringify(s))
+}
+
+var handshake = function (signal, type) {
   return {
+    signal: signal,
     type: type,
-    reference: reference
   }
 }
 
-var shareSignal = function (signal, type) {
-  var ref = JSON.stringify(signal)
-  jsonClient.post('/', handshake(ref, type), function (_, _, _) { return })
-  //console.log('shared', signal)
-}
-
-// if (!argv.key) {
-//   console.log("You'll need a key. Run with --help for more information.")
-//   process.exit(0)
-// }
-
 var offer_event = "pssh-offer"
 var answer_event = "pssh-answer"
-var files_to_send = argv._
 
-if (argv.initiate) { 
-  socket.on(answer_event, function (d) {
+if (!empty(argv._)) { 
+  console.log('sending ', argv._, ', initiating connection to peer...')
+  // setup a listener for receiver's answer event
+  socket.on(answer_event, function (answer) {
+    // on peer's answer, we mirror their signal back to connect
+    signal(peer, answer.signal)
     socket.disconnect()
-    //console.log('ok, we should be ready to connect now...', d)
-    peer.signal(JSON.parse(d.reference))
-    process.stdin.pipe(peer).pipe(process.stdout);
   })
+  // initiate an offer introduction to receiver
   var peer = makePeer(true)
-  peer.once('signal', function (s) {
-    shareSignal(s, offer_event)
+  peer.once('signal', function (offer) {
+    post(handshake(offer, offer_event))
   })
+  // on connect
   peer.on('connect', function () {
+    // stream files
     var combinedStream = CombinedStream.create();
-    files_to_send.forEach(function (file) {
-      // NOW FOR EACH FILE
-      // I ALSO WANT TO APPEND A STREAM OF LIKE,,,
-      // THE FILENAME...?
+    // files (which are passed to the cli with no flag) are in argv._
+    argv._.forEach(function (file) {
       combinedStream.append(function(next) {
-        next(fs.createReadStream(file))
+        next('{"file":"' + file + '"}')
+      })
+      combinedStream.append(function(next) {
+        next(read(file))
       })
     })
     combinedStream.pipe(peer)
   })
 }
 
-if (!argv.initiate) {
-  socket.on(offer_event, function (d) {
+if (empty(argv._)) {
+  socket.on(offer_event, function (offer) {
     socket.disconnect()
     var peer = makePeer(false)
-    peer.signal(JSON.parse(d.reference))
-    peer.once('signal', function (s) {
-      shareSignal(s, answer_event)
-    })
-    var thru = through(function(buf, _, next) {
-      this.push(JSON.parse(buf, 'base64'))
-      next()
+    signal(peer, offer.signal)
+    peer.once('signal', function (answer) {
+      post(handshake(answer, answer_event))
     })
     peer.on('connect', function () {
-      // peer.pipe(thru).pipe(process.stdout)
-      peer.pipe(process.stdout)
+      var filenames = through(function (buf, _, next) {
+        try {
+          var f = JSON.parse(buf).file
+          console.log('receiving', f)
+          this.pipe(write('TEST-'+f))
+          next()
+        } catch (_) {
+          this.push(buf)
+          next()
+        }
+      })
+      peer.pipe(filenames)
     })
-    // peer.on('data', function (d) { console.log(d) // peer.pipe(process.stdout) })
   })
 }
