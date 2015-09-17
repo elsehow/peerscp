@@ -17,10 +17,10 @@ var write = function (f) {return fs.createWriteStream(p(f))}
 var post = function (d) {jsonClient.post('/', d, function(_, _, _){ return })}
 var empty = function (x) { return x.length==0 }
 
-// arguments are -k and -h
+// TODO arguments
 // files (which are passed to the cli with no flag) get saved in argv._
 var argv = minimist(process.argv.slice(2), {
-    alias: { k: 'key', h: 'help', }
+    alias: { h: 'help', }
 });
 
 // TODO
@@ -55,11 +55,21 @@ var handshake = function (signal, type) {
   }
 }
 
-var offer_event = "pssh-offer"
-var answer_event = "pssh-answer"
+var receiver = function (connectCb) {
+  socket.on(offer_event, function (offer) {
+    socket.disconnect()
+    var peer = makePeer(false)
+    signal(peer, offer.signal)
+    peer.once('signal', function (answer) {
+      post(handshake(answer, answer_event))
+    })
+    peer.on('connect', function () {
+      connectCb(peer)
+    })
+  })
+}
 
-if (!empty(argv._)) { 
-  console.log('sending ', argv._, ', initiating connection to peer...')
+var sender = function (connectCb) {
   // setup a listener for receiver's answer event
   socket.on(answer_event, function (answer) {
     // on peer's answer, we mirror their signal back to connect
@@ -73,42 +83,49 @@ if (!empty(argv._)) {
   })
   // on connect
   peer.on('connect', function () {
-    // stream files
-    var combinedStream = CombinedStream.create();
-    // files (which are passed to the cli with no flag) are in argv._
-    argv._.forEach(function (file) {
-      combinedStream.append(function(next) {
-        next('{"file":"' + file + '"}')
-      })
-      combinedStream.append(function(next) {
-        next(read(file))
-      })
-    })
-    combinedStream.pipe(peer)
+    connectCb(peer)
   })
 }
 
-if (empty(argv._)) {
-  socket.on(offer_event, function (offer) {
-    socket.disconnect()
-    var peer = makePeer(false)
-    signal(peer, offer.signal)
-    peer.once('signal', function (answer) {
-      post(handshake(answer, answer_event))
+var receiverRoutine = function (peer) {
+  var filenames = through(function (buf, _, next) {
+    try {
+      var f = JSON.parse(buf).file
+      console.log('receiving', f)
+      this.pipe(write('TEST-'+f))
+      next()
+    } catch (_) {
+      this.push(buf)
+      next()
+    }
+  })
+  peer.pipe(filenames)
+}
+
+var senderRoutine = function (peer) {
+  // stream files
+  var combinedStream = CombinedStream.create();
+  // files (which are passed to the cli with no flag) are in argv._
+  argv._.forEach(function (file) {
+    combinedStream.append(function(next) {
+      next('{"file":"' + file + '"}')
     })
-    peer.on('connect', function () {
-      var filenames = through(function (buf, _, next) {
-        try {
-          var f = JSON.parse(buf).file
-          console.log('receiving', f)
-          this.pipe(write('TEST-'+f))
-          next()
-        } catch (_) {
-          this.push(buf)
-          next()
-        }
-      })
-      peer.pipe(filenames)
+    combinedStream.append(function(next) {
+      next(read(file))
     })
   })
+  combinedStream.pipe(peer)
+}
+
+var offer_event = "pssh-offer"
+var answer_event = "pssh-answer"
+
+if (!empty(argv._)) { 
+  console.log('sending ', argv._, ', initiating connection to peer...')
+  sender(senderRoutine)
+}
+
+// TODO: should be using base64?
+if (empty(argv._)) {
+  receiver(receiverRoutine)
 }
