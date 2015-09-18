@@ -1,19 +1,7 @@
-peerscp -k my-key
+peerscp my-symmetric-key@my-signal-server.net
 
-  Listen for a connection over my-key. Share this key with your friend.
+  Start a receiver on my-symmetric-key at the given signal server. Share the symmetric key with your friend. 
 
-peerscp -i -k my-key
+peerscp *.gif my-symmetric-key@my-signal-server.net
 
-  Initiate a connection over my-key. This will only work if some other machine has run peerscp -k my-key already.
-
-After the introductions, stdin is forwarded to the remote connection and data
-from the remote connection goes to stdout.
-
-For example:
-
-peerscp -k my-key > cool-file.mp3
-
-And on the other end:
-
-peerscp -i -k my-key < file-to-share.mp3
-
+  Send all files matching *.gif to whoever is listening at my-symmetric-key on the given signal server. This will only work if someone has run the receiver command elsewhere.

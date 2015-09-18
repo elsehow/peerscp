@@ -4,37 +4,27 @@ var Peer = require('simple-peer');
 var fs   = require('fs');
 var path = require('path');
 var through = require('through2')
-var CombinedStream = require('combined-stream2');
-var signalhub  = 'http://indra.webfactional.com'
-var socket     = require('socket.io-client')(signalhub)
-var jsonClient = require('request-json').createClient(signalhub)
-var minimist = require('minimist');
-// returns a read stream from file
-var p = function (f) { return path.join(__dirname, f) }
-var read = function (f) {return fs.createReadStream(p(f))}
-var write = function (f) {return fs.createWriteStream(p(f))}
+// return read/write streams given a filename
+var read = function (f) {return fs.createReadStream(f)}
+var write = function (f) {return fs.createWriteStream(f)}
 // posts object d to signalhub as json, return snothing
 var post = function (d) {jsonClient.post('/', d, function(_, _, _){ return })}
+// returns true if x is empty
 var empty = function (x) { return x.length==0 }
+// parse peerscp syntax
+var syntax = require('./syntax.js')
 
-// TODO arguments
-// files (which are passed to the cli with no flag) get saved in argv._
-var argv = minimist(process.argv.slice(2), {
-    alias: { h: 'help', }
-});
+// get arguments (quits informatively if arguments are bad)
+var argv = syntax(process)
 
-// TODO
-// if user did something wrong, 
-// let them know
-// console.log(empty(argv._))
-// if (argv.help 
-//     || argv._[0] === 'help'
-//     || (argv.i && empty(argv._))
-//     || (!argv.i && !empty(argv._))) {
-//   read('usage.txt').pipe(process.stdout);
-// }
+// signal hub stuff
+// setup from command line arguments
+var socket     = require('socket.io-client')(argv.server)
+var jsonClient = require('request-json').createClient(argv.server)
+var offer_event = "peerscp-offer-"+argv.key
+var answer_event = "peerscp-answer-"+argv.key
 
-// make a simple-peer peer
+// make a simple-peer 
 var makePeer = function (isInitiator) {
   return new Peer({
       initiator: isInitiator,
@@ -54,7 +44,6 @@ var handshake = function (signal, type) {
     type: type,
   }
 }
-
 
 var sender = function (connectCb) {
   // setup a listener for receiver's answer event
@@ -88,12 +77,15 @@ var receiver = function (connectCb) {
   })
 }
 
+// TODO -r for recursive in directories
+// TODO note about omitting dirs without -r
 var senderRoutine = function (peer) {
-  var combinedStream = CombinedStream.create();
-  // stream each file passed over argv._
-  argv._.forEach(function (file) {
+  var combinedStream = require('combined-stream2').create();
+  // stream each file passed over argv
+  argv.files.forEach(function (file) {
     // send descriptive json before each file stream
     combinedStream.append(function(next) {
+      console.log('sending', file)
       next('{"file":"' + file + '"}')
     })
     // stream the file
@@ -104,16 +96,17 @@ var senderRoutine = function (peer) {
   combinedStream.pipe(peer)
 }
 
-// TODO base 64 buffer decoding??
+// TODO destroy existing files with the same name?
 // test between two machines + with ben???
 var receiverRoutine = function (peer) {
-  var filenames = through(function (buf, _, next) {
+  // var gunzip    = zlib.createGunzip();
+  var saveFiles = through(function (buf, _, next) {
     // if this is a json buffer, parse it, read the filename,
     // and pipe future data to an appropriate write stream
     try {
       var f = JSON.parse(buf).file
       console.log('receiving', f)
-      this.pipe(write('TEST-'+f))
+      this.pipe(write(f))
       next()
     // if this isnt a json buffer, keep pushing to write stream
     } catch (_) {
@@ -121,19 +114,17 @@ var receiverRoutine = function (peer) {
       next()
     }
   })
-  peer.pipe(filenames)
+  peer.pipe(saveFiles)
 }
 
-var offer_event = "pssh-offer"
-var answer_event = "pssh-answer"
-
-// run sender routine if there are files passed over
-if (!empty(argv._)) { 
-  console.log('sending ', argv._, ', initiating connection to peer...')
+// run sender routine if there are files passed in 
+if (!empty(argv.files)) { 
+  console.log('initiating connection to receiver...')
   sender(senderRoutine)
 }
 
 // run receiver routine if there aren't
-if (empty(argv._)) {
+if (empty(argv.files)) {
+  console.log('waiting for connection from sender...')
   receiver(receiverRoutine)
 }

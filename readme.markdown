@@ -2,29 +2,21 @@
 
 a dumb-simple peer-to-peer "scp" over webrtc
 
+this still doesn't work with directories, nor does it support encryption. pull requests are super welcome!
+
 # usage
 
-`peerscp -k my-key`
+`peerscp my-symmetric-key@my-signal-server.net`
 
-Listen for a connection over my-key. Share this key with your friend.
- 
-  `peerscp -i -k my-key`
- 
-Initiate a connection over my-key. This will only work if some other machine has run `peerscp -k my-key` already.
+Start a receiver on my-symmetric-key at the given signal server. Share the symmetric key with your friend. 
 
-After the introductions, stdin is forwarded to the remote connection and data from the remote connection goes to stdout.
+`peerscp *.gif my-symmetric-key@my-signal-server.net`
 
-For example:
-  
-  `peerscp -k my-key > cool-file.mp3`
-  
-And on the other end:
-
-  `peerscp -i -k my-key < file-to-share.mp3`
+Send all files matching *.gif to whoever is listening at my-symmetric-key on the given signal server. This will only work if someone has run the receiver command elsewhere.
 
 # install
 
-With [npm](https://npmjs.org), to get the `peerscp` command do:
+With [npm](https://npmjs.org), do:
 
 ```
 npm install -g peerscp
