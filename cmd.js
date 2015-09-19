@@ -2,7 +2,6 @@
 
 var Peer = require('simple-peer');
 var fs   = require('fs');
-var path = require('path');
 var through = require('through2')
 // return read/write streams given a filename
 var read = function (f) {return fs.createReadStream(f)}
