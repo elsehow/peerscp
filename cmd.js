@@ -119,8 +119,7 @@ var receiverRoutine = function (peer) {
 }
 
 // run sender routine if there are files passed in 
-if (!empty(argv.files)) { sender(senderRoutine) }
-
 // run receiver routine if there aren't
-if (empty(argv.files)) { receiver(receiverRoutine) }
-
+var there_are_files =  empty(argv.files)
+if (there_are_files) { sender(senderRoutine) }
+if (!there_are_files) { receiver(receiverRoutine) }
