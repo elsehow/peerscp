@@ -60,6 +60,7 @@ var sender = function (connectCb) {
   peer.on('connect', function () {
     connectCb(peer)
   })
+  console.log('initiating connection to receiver...')
 }
 
 var receiver = function (connectCb) {
@@ -74,6 +75,7 @@ var receiver = function (connectCb) {
       connectCb(peer)
     })
   })
+  console.log('waiting for connection from sender...')
 }
 
 // TODO -r for recursive in directories
@@ -117,13 +119,8 @@ var receiverRoutine = function (peer) {
 }
 
 // run sender routine if there are files passed in 
-if (!empty(argv.files)) { 
-  console.log('initiating connection to receiver...')
-  sender(senderRoutine)
-}
+if (!empty(argv.files)) { sender(senderRoutine) }
 
 // run receiver routine if there aren't
-if (empty(argv.files)) {
-  console.log('waiting for connection from sender...')
-  receiver(receiverRoutine)
-}
+if (empty(argv.files)) { receiver(receiverRoutine) }
+
