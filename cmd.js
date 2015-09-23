@@ -1,27 +1,25 @@
 #!/usr/bin/env node
 
-var Peer = require('simple-peer');
-var fs   = require('fs');
-var through = require('through2')
+var Peer      = require('simple-peer');
+var fs        = require('fs');
+var through   = require('through2')
 // return read/write streams given a filename
-var read = function (f) {return fs.createReadStream(f)}
-var write = function (f) {return fs.createWriteStream(f)}
-// posts object d to signalhub as json, return snothing
-var post = function (d) {jsonClient.post('/', d, function(_, _, _){ return })}
+var read      = function (f) {return fs.createReadStream(f)}
+var write     = function (f) {return fs.createWriteStream(f)}
 // returns true if x is empty
-var empty = function (x) { return x.length==0 }
+var empty     = function (x) { return x.length==0 }
 // parse peerscp syntax
-var syntax = require('./syntax.js')
-
-// get arguments (quits informatively if arguments are bad)
-var argv = syntax(process)
-
+var syntax    = require('./syntax.js')
+// get arguments passed over CLI 
+// (quits informatively if arguments are bad)
+var argv      = syntax(process)
 // signal hub stuff
 // setup from command line arguments
-var socket     = require('socket.io-client')(argv.server)
-var jsonClient = require('request-json').createClient(argv.server)
-var offer_event = "peerscp-offer-"+argv.key
-var answer_event = "peerscp-answer-"+argv.key
+var socket    = require('socket.io-client')(argv.server)
+var poster    = require('request-json').createClient(argv.server)
+var post      = function (d) {poster.post('/', d, function(_, _, _){ return })}
+var offer_ev  = "peerscp-offer-"+argv.key
+var answer_ev = "peerscp-answer-"+argv.key
 
 // make a simple-peer 
 var makePeer = function (isInitiator) {
@@ -46,7 +44,7 @@ var handshake = function (signal, type) {
 
 var sender = function (connectCb) {
   // setup a listener for receiver's answer event
-  socket.on(answer_event, function (answer) {
+  socket.on(answer_ev, function (answer) {
     // on peer's answer, we mirror their signal back to connect
     signal(peer, answer.signal)
     socket.disconnect()
@@ -54,33 +52,35 @@ var sender = function (connectCb) {
   // initiate an offer introduction to receiver
   var peer = makePeer(true)
   peer.once('signal', function (offer) {
-    post(handshake(offer, offer_event))
+    post(handshake(offer, offer_ev))
   })
   // on connect to peer
   peer.on('connect', function () {
     connectCb(peer)
   })
-  console.log('initiating connection to receiver...')
 }
 
 var receiver = function (connectCb) {
-  socket.on(offer_event, function (offer) {
+  socket.on(offer_ev, function (offer) {
     socket.disconnect()
     var peer = makePeer(false)
     signal(peer, offer.signal)
     peer.once('signal', function (answer) {
-      post(handshake(answer, answer_event))
+      post(handshake(answer, answer_ev))
     })
     peer.on('connect', function () {
       connectCb(peer)
     })
   })
-  console.log('waiting for connection from sender...')
 }
 
 // TODO -r for recursive in directories
 // TODO note about omitting dirs without -r
 var senderRoutine = function (peer) {
+  var binary_enc = through(function (buf, _, next) {
+    this.push(new Buffer(buf).toString('binary'))
+    next()
+  })
   var combinedStream = require('combined-stream2').create();
   // stream each file passed over argv
   argv.files.forEach(function (file) {
@@ -91,7 +91,7 @@ var senderRoutine = function (peer) {
     })
     // stream the file
     combinedStream.append(function(next) {
-      next(read(file))
+      next(read(file).pipe(binary_enc))
     })
   })
   combinedStream.pipe(peer)
@@ -111,14 +111,13 @@ var receiverRoutine = function (peer) {
       next()
     // if this isnt a json buffer, keep pushing to write stream
     } catch (_) {
-      this.push(buf)
+      this.push(new Buffer(buf, 'binary'))
       next()
     }
   })
   peer.pipe(saveFiles)
 }
 
-// run sender routine if there are files passed in 
 // run receiver routine if there aren't
 var there_are_files =  empty(argv.files)
 if (there_are_files) { sender(senderRoutine) }
