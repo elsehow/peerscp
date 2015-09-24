@@ -15,8 +15,8 @@ var syntax    = require('./syntax.js')
 var argv      = syntax(process)
 // signal hub stuff
 // setup from command line arguments
-var socket    = require('socket.io-client')(argv.server)
-var poster    = require('request-json').createClient(argv.server)
+var socket    = require('socket.io-client')(argv.host)
+var poster    = require('request-json').createClient(argv.host)
 var post      = function (d) {poster.post('/', d, function(_, _, _){ return })}
 var offer_ev  = "peerscp-offer-"+argv.key
 var answer_ev = "peerscp-answer-"+argv.key
